@@ -2,7 +2,6 @@
 #include "esp_camera.h"
 
 #include "SSD1306.h"
-// #include "OLEDDisplayUi.h"
 
 #include "OneButton.h"
 
@@ -32,13 +31,16 @@
 #define AS312_PIN       33      ///< PIR Sensor pin
 #define BUTTON_1        34      ///< Board button
 
-#define SSD1306_ADDRESS 0x3c  ///< SSD1306 I2C address
+#define SSD1306_ADDRESS 0x3c    ///< SSD1306 I2C address
+
+#define IMAGE_DEPTH     3       ///< Image depth in pixels
 
 SSD1306 oled(SSD1306_ADDRESS, I2C_SDA, I2C_SCL);
-// OLEDDisplayUi ui(&oled);
 
-OneButton button(BUTTON_1, true);
-void button_func();
+OneButton button(BUTTON_1, false, false);
+static void button_func();
+
+static uint8_t inverted = 0;
 
 void setup() {
     Serial.begin(BAUDRATE);
@@ -68,7 +70,11 @@ void setup() {
     config.pin_reset = RESET_GPIO_NUM;
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_RGB888;
-    config.frame_size = FRAMESIZE_QQVGA;
+    if (IMAGE_DEPTH == 1) {
+        config.frame_size = FRAMESIZE_QQVGA;
+    } else if (IMAGE_DEPTH == 3) {
+        config.frame_size = FRAMESIZE_HQVGA;
+    } 
     config.jpeg_quality = 10;
     config.fb_count = 2;
 
@@ -90,8 +96,6 @@ void setup() {
     s->set_special_effect(s, 2);
 
     button.attachClick(button_func);
-
-    camera_fb_t *fb = esp_camera_fb_get();
 }
 
 void loop() {
@@ -100,19 +104,44 @@ void loop() {
         ESP_LOGE(TAG, "Camera capture failed");
     }
     size_t offset;
-    for (uint8_t i = 0; i < oled.getHeight(); i++) {
-       offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
-       for (uint8_t j = 0; j < oled.getWidth(); j++) {
-          if (fb->buf[ offset+j*3 ] > 127) oled.setPixel(j, i);
-       }
+    
+    if (IMAGE_DEPTH == 1) {
+        for (uint8_t i = 0; i < oled.getHeight(); i++) {
+            offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
+            for (uint8_t j = 0; j < oled.getWidth(); j++) {
+                if (fb->buf[ offset+j*3 ] > 127) oled.setPixel(j, i);
+            }
+        }
+    } else if (IMAGE_DEPTH == 3) {
+        for (uint8_t i = 0; i < oled.getHeight(); i++) {
+            offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth()/3)/2)*3;
+            for (uint16_t j = 0; j < oled.getWidth(); j+=3) {
+                if (fb->buf[ offset+j*3 ] > 192) {
+                    oled.setPixel(j, i);
+                    oled.setPixel(j+1, i);
+                    oled.setPixel(j+2, i);
+                } else if (fb->buf[ offset+j*3 ] > 128) {
+                    oled.setPixel(j, i);
+                    oled.setPixel(j+1, i);
+                } else if (fb->buf[ offset+j*3 ] > 64) {
+                    oled.setPixel(j, i);
+                }
+            }
+        }
     }
-
     esp_camera_fb_return(fb);
     oled.display();
     oled.clear();
+    button.tick();
 }
 
-/* Invert display color */
-void button_func() {
-    oled.setColor(INVERSE);
+/* Invert display color. Roughly works */
+static void button_func() {
+    if (inverted) {
+        oled.normalDisplay();
+        inverted = 0;
+    } else {
+        oled.invertDisplay();
+        inverted = 1;
+    }
 }
