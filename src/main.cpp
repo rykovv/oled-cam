@@ -40,10 +40,9 @@ OneButton button(BUTTON_1, true);
 
 void setup() {
     oled.init();
-    oled.setFont(ArialMT_Plain_16);
-    oled.setTextAlignment(TEXT_ALIGN_CENTER);
     delay(50);
-    oled.drawString(oled.getWidth() / 2, oled.getHeight() / 2, "Oled Camera");
+
+    oled.setPixel(10, 10);
     oled.display();
 }
 
@@ -51,7 +50,7 @@ void loop() {
   // put your main code here, to run repeatedly:
 }
 
-/* Invert display colors */
+/* Invert display color */
 void button_func() {
-    
+    oled.setColor(INVERSE);
 }
