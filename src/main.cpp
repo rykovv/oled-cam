@@ -33,7 +33,7 @@
 
 #define SSD1306_ADDRESS 0x3c    ///< SSD1306 I2C address
 
-#define IMAGE_DEPTH     3       ///< Image depth in pixels
+#define IMAGE_DEPTH     2       ///< Image depth value+1 px
 #define MAX_IMAGE_DEPTH 3       ///< Highest image depth
 
 SSD1306 oled(SSD1306_ADDRESS, I2C_SDA, I2C_SCL);
@@ -105,16 +105,15 @@ void loop() {
     }
     size_t offset;
     
-    if (depth == 1) {
+    if (depth == 0) {
         for (uint8_t i = 0; i < oled.getHeight(); i++) {
             offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
             for (uint8_t j = 0; j < oled.getWidth(); j++) {
                 if (fb->buf[ offset+j*3 ] > 127) oled.setPixel(j, i);
                 button.tick();
             }
-            // button.tick();
         }
-    } else if (depth == 2) {
+    } else if (depth == 1) {
         for (uint8_t i = 0; i < oled.getHeight(); i++) {
             offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
             for (uint16_t j = 0; j < oled.getWidth(); j+=2) {
@@ -126,9 +125,8 @@ void loop() {
                 }
                 button.tick();
             }
-            // button.tick();
         }
-    } else if (depth == 3) {
+    } else if (depth == 2) {
         for (uint8_t i = 0; i < oled.getHeight(); i++) {
             offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
             for (uint16_t j = 0; j < oled.getWidth(); j+=3) {
@@ -144,7 +142,6 @@ void loop() {
                 }
                 button.tick();
             }
-            // button.tick();
         }
     }
     esp_camera_fb_return(fb);
@@ -152,12 +149,8 @@ void loop() {
     oled.clear();
 }
 
-static void button_click() {
-    depth = (depth + 1) % MAX_IMAGE_DEPTH;
-}
-
 /* Invert display color. Roughly works */
-static void button_double_click() {
+static void button_click() {
     if (inverted) {
         oled.normalDisplay();
         inverted = 0;
@@ -165,4 +158,8 @@ static void button_double_click() {
         oled.invertDisplay();
         inverted = 1;
     }
+}
+
+static void button_double_click() {
+    depth = (depth + 1) % MAX_IMAGE_DEPTH;
 }
