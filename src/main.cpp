@@ -6,6 +6,8 @@
 
 #include "OneButton.h"
 
+#define BAUDRATE        115200  ///< Serial Baudrate
+
 #define PWDN_GPIO_NUM   26      ///< PWD camera pin
 #define RESET_GPIO_NUM  -1      ///< RST camera pin
 #define XCLK_GPIO_NUM   32      ///< XCLK camera pin
@@ -36,16 +38,14 @@ SSD1306 oled(SSD1306_ADDRESS, I2C_SDA, I2C_SCL);
 // OLEDDisplayUi ui(&oled);
 
 OneButton button(BUTTON_1, true);
-
+void button_func();
 
 void setup() {
+    Serial.begin(BAUDRATE);
     oled.init();
     oled.setFont(ArialMT_Plain_16);
     oled.setTextAlignment(TEXT_ALIGN_CENTER);
     delay(50);
-
-    oled.setPixel(10, 10);
-    oled.display();
 
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
@@ -85,15 +85,31 @@ void setup() {
 
     sensor_t *s = esp_camera_sensor_get();
     /* Flip image initially if necessary */
-    // s->set_vflip(s, 1);
+    s->set_vflip(s, 1);
     /* Black and white special effect set */
     s->set_special_effect(s, 2);
 
     button.attachClick(button_func);
+
+    camera_fb_t *fb = esp_camera_fb_get();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (!fb) {
+        ESP_LOGE(TAG, "Camera capture failed");
+    }
+    size_t offset;
+    for (uint8_t i = 0; i < oled.getHeight(); i++) {
+       offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
+       for (uint8_t j = 0; j < oled.getWidth(); j++) {
+          if (fb->buf[ offset+j*3 ] > 127) oled.setPixel(j, i);
+       }
+    }
+
+    esp_camera_fb_return(fb);
+    oled.display();
+    oled.clear();
 }
 
 /* Invert display color */
