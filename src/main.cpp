@@ -70,11 +70,7 @@ void setup() {
     config.pin_reset = RESET_GPIO_NUM;
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_RGB888;
-    if (IMAGE_DEPTH == 1) {
-        config.frame_size = FRAMESIZE_QQVGA;
-    } else if (IMAGE_DEPTH == 3) {
-        config.frame_size = FRAMESIZE_HQVGA;
-    } 
+    config.frame_size = FRAMESIZE_QQVGA; 
     config.jpeg_quality = 10;
     config.fb_count = 2;
 
@@ -112,9 +108,21 @@ void loop() {
                 if (fb->buf[ offset+j*3 ] > 127) oled.setPixel(j, i);
             }
         }
+    } else if (IMAGE_DEPTH == 2) {
+        for (uint8_t i = 0; i < oled.getHeight(); i++) {
+            offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
+            for (uint16_t j = 0; j < oled.getWidth(); j+=2) {
+                if (fb->buf[ offset+j*3 ] > 170) {
+                    oled.setPixel(j, i);
+                    oled.setPixel(j+1, i);
+                } else if (fb->buf[ offset+j*3 ] > 85) {
+                    oled.setPixel(j, i);
+                }
+            }
+        }
     } else if (IMAGE_DEPTH == 3) {
         for (uint8_t i = 0; i < oled.getHeight(); i++) {
-            offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth()/3)/2)*3;
+            offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
             for (uint16_t j = 0; j < oled.getWidth(); j+=3) {
                 if (fb->buf[ offset+j*3 ] > 192) {
                     oled.setPixel(j, i);
