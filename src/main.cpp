@@ -34,13 +34,16 @@
 #define SSD1306_ADDRESS 0x3c    ///< SSD1306 I2C address
 
 #define IMAGE_DEPTH     3       ///< Image depth in pixels
+#define MAX_IMAGE_DEPTH 3       ///< Highest image depth
 
 SSD1306 oled(SSD1306_ADDRESS, I2C_SDA, I2C_SCL);
 
 OneButton button(BUTTON_1, false, false);
-static void button_func();
+static void button_click();
+static void button_double_click();
 
 static uint8_t inverted = 0;
+static uint8_t depth = IMAGE_DEPTH;
 
 void setup() {
     Serial.begin(BAUDRATE);
@@ -91,7 +94,8 @@ void setup() {
     /* Black and white special effect set */
     s->set_special_effect(s, 2);
 
-    button.attachClick(button_func);
+    button.attachClick(button_click);
+    button.attachDoubleClick(button_double_click);
 }
 
 void loop() {
@@ -101,14 +105,16 @@ void loop() {
     }
     size_t offset;
     
-    if (IMAGE_DEPTH == 1) {
+    if (depth == 1) {
         for (uint8_t i = 0; i < oled.getHeight(); i++) {
             offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
             for (uint8_t j = 0; j < oled.getWidth(); j++) {
                 if (fb->buf[ offset+j*3 ] > 127) oled.setPixel(j, i);
+                button.tick();
             }
+            // button.tick();
         }
-    } else if (IMAGE_DEPTH == 2) {
+    } else if (depth == 2) {
         for (uint8_t i = 0; i < oled.getHeight(); i++) {
             offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
             for (uint16_t j = 0; j < oled.getWidth(); j+=2) {
@@ -118,9 +124,11 @@ void loop() {
                 } else if (fb->buf[ offset+j*3 ] > 85) {
                     oled.setPixel(j, i);
                 }
+                button.tick();
             }
+            // button.tick();
         }
-    } else if (IMAGE_DEPTH == 3) {
+    } else if (depth == 3) {
         for (uint8_t i = 0; i < oled.getHeight(); i++) {
             offset = (((fb->height-oled.getHeight())/2)+i)*fb->width*3 + ((fb->width-oled.getWidth())/2)*3;
             for (uint16_t j = 0; j < oled.getWidth(); j+=3) {
@@ -134,17 +142,22 @@ void loop() {
                 } else if (fb->buf[ offset+j*3 ] > 64) {
                     oled.setPixel(j, i);
                 }
+                button.tick();
             }
+            // button.tick();
         }
     }
     esp_camera_fb_return(fb);
     oled.display();
     oled.clear();
-    button.tick();
+}
+
+static void button_click() {
+    depth = (depth + 1) % MAX_IMAGE_DEPTH;
 }
 
 /* Invert display color. Roughly works */
-static void button_func() {
+static void button_double_click() {
     if (inverted) {
         oled.normalDisplay();
         inverted = 0;
